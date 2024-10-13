@@ -1,7 +1,7 @@
 import frappe
 from erpnext.manufacturing.doctype.job_card.job_card import JobCard
 from frappe.utils.data import flt, get_datetime, time_diff_in_hours
-
+from frappe import _
 
 
 
@@ -39,3 +39,31 @@ class CustomJobCard(JobCard):
 
         for row in self.sub_operations:
             self.total_completed_qty += row.completed_qty
+
+
+
+
+
+@frappe.whitelist(allow_guest=True)
+def calc_production_time(work_order):
+    try:
+        if not work_order:
+            frappe.throw("Please Specify Work Order")
+            
+        all_jobs = frappe.get_list("Job Card", filters={'status':'Completed','work_order': work_order},fields=['total_time_in_mins'])
+
+        total_mins = 0.0
+        if len(all_jobs) > 0:
+            for job in all_jobs:
+                total_mins += job.total_time_in_mins
+
+            wo = frappe.get_doc("Work Order", work_order)
+            wo.ignore_validate_update_after_submit = True
+            wo.db_set('custom_total_production_calculations', total_mins)
+        else:
+            frappe.throw("This Work Order Doesn't Have any Job Cards")
+
+
+        return "Updated Successfully"
+    except Exception as e:
+        return e
